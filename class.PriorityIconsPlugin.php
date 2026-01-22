@@ -42,6 +42,40 @@ class PriorityIconsPlugin extends Plugin
     public $config_class = 'PriorityIconsConfig';
 
     /**
+     * Singleton plugin - only one instance needed.
+     *
+     * @return bool
+     */
+    function isSingleton() {
+        return true;
+    }
+
+    /**
+     * Enable hook - auto-create instance for singleton plugin.
+     *
+     * Called when plugin is enabled. Creates a single instance
+     * if this is a singleton plugin with no existing instances.
+     *
+     * @return array|void Errors array on failure
+     */
+    function enable() {
+        $errors = [];
+
+        // Auto-create instance for singleton plugin
+        if ($this->isSingleton() && $this->getNumInstances() === 0) {
+            $vars = [
+                'name' => $this->getName(),
+                'isactive' => 1,
+                'notes' => 'Auto-created singleton instance'
+            ];
+
+            if (!$this->addInstance($vars, $errors)) {
+                return $errors;
+            }
+        }
+    }
+
+    /**
      * Priority-to-visual mapping configuration.
      *
      * Each priority level maps to:
