@@ -25,6 +25,11 @@ if (!class_exists('Plugin')) {
     require_once INCLUDE_DIR . 'class.plugin.php';
 }
 
+// Load config class
+if (file_exists(__DIR__ . '/config.php')) {
+    require_once __DIR__ . '/config.php';
+}
+
 /**
  * Main plugin class extending osTicket's Plugin base.
  *
