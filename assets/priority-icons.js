@@ -24,6 +24,7 @@
      */
     const CONFIG = window.PriorityIconsConfig || {
         priorities: {
+            // English names
             Emergency: {
                 icon: 'exclamation-circle',
                 color: '#dc3545',
@@ -40,6 +41,22 @@
                 class: 'priority-normal',
             },
             Low: {
+                icon: 'arrow-down',
+                color: '#28a745',
+                class: 'priority-low',
+            },
+            // German names (Aliases)
+            Notfall: {
+                icon: 'exclamation-circle',
+                color: '#dc3545',
+                class: 'priority-emergency',
+            },
+            Hoch: {
+                icon: 'arrow-up',
+                color: '#fd7e14',
+                class: 'priority-high',
+            },
+            Niedrig: {
                 icon: 'arrow-down',
                 color: '#28a745',
                 class: 'priority-low',

@@ -88,9 +88,12 @@ class PriorityIconsPlugin extends Plugin
      * - color: Hex color code for the indicator
      * - class: CSS class for styling
      *
+     * Supports both English and German priority names.
+     *
      * @var array<string, array{icon: string, color: string, class: string}>
      */
     private array $priorityMap = [
+        // English names
         'Emergency' => [
             'icon'  => 'exclamation-circle',
             'color' => '#dc3545',
@@ -107,6 +110,22 @@ class PriorityIconsPlugin extends Plugin
             'class' => 'priority-normal',
         ],
         'Low' => [
+            'icon'  => 'arrow-down',
+            'color' => '#28a745',
+            'class' => 'priority-low',
+        ],
+        // German names (Aliases)
+        'Notfall' => [
+            'icon'  => 'exclamation-circle',
+            'color' => '#dc3545',
+            'class' => 'priority-emergency',
+        ],
+        'Hoch' => [
+            'icon'  => 'arrow-up',
+            'color' => '#fd7e14',
+            'class' => 'priority-high',
+        ],
+        'Niedrig' => [
             'icon'  => 'arrow-down',
             'color' => '#28a745',
             'class' => 'priority-low',
