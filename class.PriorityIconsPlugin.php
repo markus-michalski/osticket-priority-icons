@@ -38,9 +38,9 @@ class PriorityIconsPlugin extends Plugin
     /**
      * Configuration class name for admin settings.
      *
-     * @var string|null
+     * @var string
      */
-    public ?string $config_class = 'PriorityIconsConfig';
+    public $config_class = 'PriorityIconsConfig';
 
     /**
      * Singleton instance for enable() pattern.

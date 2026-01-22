@@ -179,7 +179,7 @@ if (!class_exists('Plugin')) {
          *
          * @var string|null
          */
-        public ?string $config_class = null;
+        public $config_class = null;
 
         /**
          * Plugin instance ID.
