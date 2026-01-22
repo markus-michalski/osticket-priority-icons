@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    PHPUnit Configuration for osTicket Priority Icons Plugin
+
+    TDD Red Phase: Run these tests to verify they FAIL before implementation.
+    All tests should fail with "Class not found" or similar errors.
+
+    Usage:
+        ./vendor/bin/phpunit                    # Run all tests
+        ./vendor/bin/phpunit - -group=unit        # Run unit tests only
+        ./vendor/bin/phpunit - -coverage-html=cov # Generate coverage report
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.0/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         displayDetailsOnTestsThatTriggerDeprecations="true"
+         displayDetailsOnTestsThatTriggerErrors="true"
+         displayDetailsOnTestsThatTriggerNotices="true"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         stopOnFailure="false"
+         beStrictAboutOutputDuringTests="true">
+
+    <!-- Test Suites -->
+    <testsuites>
+        <testsuite name="Unit Tests">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+
+    <!-- Code Coverage Configuration -->
+    <source>
+        <include>
+            <directory suffix=".php">.</directory>
+        </include>
+        <exclude>
+            <directory>tests</directory>
+            <directory>vendor</directory>
+            <directory>docs</directory>
+            <directory>assets</directory>
+            <file>plugin.php</file>
+        </exclude>
+    </source>
+
+    <!-- Coverage Reports -->
+    <coverage>
+        <report>
+            <html outputDirectory="coverage"/>
+            <clover outputFile="coverage/clover.xml"/>
+            <text outputFile="php://stdout" showUncoveredFiles="true"/>
+        </report>
+    </coverage>
+
+    <!-- PHP Configuration -->
+    <php>
+        <!-- Error reporting -->
+        <ini name="error_reporting" value="-1"/>
+        <ini name="display_errors" value="1"/>
+        <ini name="display_startup_errors" value="1"/>
+
+        <!-- Memory limit for large test suites -->
+        <ini name="memory_limit" value="256M"/>
+
+        <!-- Test environment constants -->
+        <const name="PHPUNIT_TESTING" value="true"/>
+    </php>
+
+    <!-- Test Groups -->
+    <groups>
+        <include>
+            <group>unit</group>
+        </include>
+    </groups>
+</phpunit>
