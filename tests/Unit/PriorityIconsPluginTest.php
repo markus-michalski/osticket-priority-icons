@@ -210,43 +210,6 @@ class PriorityIconsPluginTest extends TestCase
     }
 
     // =========================================================================
-    // Tests: enable() - Singleton Pattern
-    // =========================================================================
-
-    /**
-     * Test that enable() returns a plugin instance.
-     *
-     * Expected: Static enable() method returns an instance of the plugin.
-     */
-    #[Test]
-    public function enableReturnsPluginInstance(): void
-    {
-        $instance = \PriorityIconsPlugin::enable(1);
-
-        $this->assertInstanceOf(\PriorityIconsPlugin::class, $instance);
-    }
-
-    /**
-     * Test that enable() implements singleton pattern.
-     *
-     * Expected: Multiple calls to enable() return the same instance.
-     */
-    #[Test]
-    public function enableReturnsSameInstanceOnMultipleCalls(): void
-    {
-        $instance1 = \PriorityIconsPlugin::enable(1);
-        $instance2 = \PriorityIconsPlugin::enable(2);
-        $instance3 = \PriorityIconsPlugin::enable('different-id');
-
-        $this->assertSame(
-            $instance1,
-            $instance2,
-            'enable() should return the same singleton instance'
-        );
-        $this->assertSame($instance1, $instance3);
-    }
-
-    // =========================================================================
     // Tests: injectAssets() - HTML Output
     // =========================================================================
 

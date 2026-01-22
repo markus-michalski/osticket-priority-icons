@@ -29,7 +29,6 @@ if (!class_exists('Plugin')) {
  * Main plugin class extending osTicket's Plugin base.
  *
  * Follows osTicket plugin conventions:
- * - Singleton pattern via enable() hook
  * - Signal registration in bootstrap()
  * - Asset injection via injectAssets()
  */
@@ -41,13 +40,6 @@ class PriorityIconsPlugin extends Plugin
      * @var string
      */
     public $config_class = 'PriorityIconsConfig';
-
-    /**
-     * Singleton instance for enable() pattern.
-     *
-     * @var self|null
-     */
-    private static ?self $instance = null;
 
     /**
      * Priority-to-visual mapping configuration.
@@ -98,24 +90,6 @@ class PriorityIconsPlugin extends Plugin
             [$this, 'injectAssets'],
             'PriorityIconsPlugin'
         );
-    }
-
-    /**
-     * Enable hook implementing singleton pattern.
-     *
-     * Returns the same instance on repeated calls to prevent
-     * duplicate signal registrations.
-     *
-     * @param int|string $id Plugin instance ID
-     * @return self Singleton instance
-     */
-    public static function enable(int|string $id): self
-    {
-        if (self::$instance === null) {
-            self::$instance = new self($id);
-        }
-
-        return self::$instance;
     }
 
     /**
