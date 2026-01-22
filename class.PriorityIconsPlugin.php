@@ -221,7 +221,7 @@ class PriorityIconsPlugin extends Plugin
      */
     private function getPluginDirectory(): string
     {
-        return INCLUDE_DIR . 'plugins/priority-icons/';
+        return __DIR__ . '/';
     }
 
     /**
@@ -231,6 +231,7 @@ class PriorityIconsPlugin extends Plugin
      */
     private function getAssetUrl(): string
     {
-        return ROOT_PATH . 'include/plugins/priority-icons/';
+        $pluginDir = basename(__DIR__);
+        return ROOT_PATH . 'include/plugins/' . $pluginDir . '/';
     }
 }
