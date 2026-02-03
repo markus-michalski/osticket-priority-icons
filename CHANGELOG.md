@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Nothing yet
 
+## [1.0.3] - 2026-02-03
+
+### Changed
+- rewrite tests for ob_start()-based asset injection
+- add GitHub Actions CI pipeline and update .gitignore
+
+### Fixed
+- drop PHP 8.1 from matrix and disable coverage in CI
+- use composer update for multi-PHP version compatibility
+
 ## [1.0.2] - 2026-02-03
 
 ### Added
