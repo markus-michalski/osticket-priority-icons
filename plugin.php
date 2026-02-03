@@ -14,7 +14,7 @@
 
 return [
     'id'          => 'osticket:priority-icons',
-    'version' =>        '1.0.3',
+    'version' =>        '1.0.4',
     'name'        => /* trans */ 'Priority Icons',
     'author'      => 'Markus Michalski',
     'description' => /* trans */ 'Replaces priority text labels with visual color-coded icons',

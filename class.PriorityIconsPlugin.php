@@ -161,7 +161,7 @@ class PriorityIconsPlugin extends Plugin
 
         // Check if plugin is disabled via config
         try {
-            $pluginConfig = $this->getConfig();
+            $pluginConfig = $this->getInstanceConfig();
             if ($pluginConfig && !$pluginConfig->get('enabled')) {
                 return;
             }
@@ -230,9 +230,33 @@ class PriorityIconsPlugin extends Plugin
     }
 
     /**
+     * Get config from the active plugin instance.
+     *
+     * Plugin::getConfig() without an instance creates a PluginConfig
+     * with NULL namespace, which only returns field defaults — never
+     * the saved values from ost_config. The correct namespace is
+     * "plugin.{pluginId}.instance.{instanceId}", which only
+     * PluginInstance::getConfig() provides.
+     *
+     * @return \PluginConfig|null Config object with saved values, or null
+     */
+    private function getInstanceConfig(): ?\PluginConfig
+    {
+        try {
+            foreach ($this->getActiveInstances() as $instance) {
+                return $instance->getConfig();
+            }
+        } catch (\Throwable $e) {
+            // Fallback: try Plugin::getConfig() (returns defaults only)
+        }
+
+        return $this->getConfig();
+    }
+
+    /**
      * Build priority map with admin-configured colors merged in.
      *
-     * Reads color settings from plugin config and overrides
+     * Reads color settings from plugin instance config and overrides
      * the hardcoded defaults in $priorityMap.
      *
      * @return array<string, array{icon: string, color: string, class: string}>
@@ -242,7 +266,7 @@ class PriorityIconsPlugin extends Plugin
         $map = $this->priorityMap;
 
         try {
-            $pluginConfig = $this->getConfig();
+            $pluginConfig = $this->getInstanceConfig();
             if (!$pluginConfig) {
                 return $map;
             }

@@ -109,12 +109,16 @@
     };
 
     /**
-     * Check if element has already been processed.
+     * Check if element or any ancestor is already processed.
+     * Prevents infinite recursion from MutationObserver re-processing
+     * sr-only text inside priority-wrapper elements.
      *
      * @param {Element} element - Element to check
      * @returns {boolean} True if already processed
      */
-    const isProcessed = (element) => element.hasAttribute('data-priority-icon');
+    const isProcessed = (element) => {
+        return !!element.closest('[data-priority-icon], .priority-wrapper, .sr-only');
+    };
 
     /**
      * Mark element as processed with priority name.
@@ -315,15 +319,28 @@
     /**
      * Handle DOM mutations.
      * Re-scans when new nodes are added (backup for PJAX).
+     * Ignores mutations from our own icon replacements to prevent loops.
      *
      * @param {MutationRecord[]} mutations - Array of mutation records
      */
     const handleMutations = (mutations) => {
-        const hasNewNodes = mutations.some(
-            (mutation) => mutation.addedNodes.length > 0
-        );
+        const hasRelevantNodes = mutations.some((mutation) => {
+            for (const node of mutation.addedNodes) {
+                // Skip our own injected nodes
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (node.classList && node.classList.contains('priority-wrapper')) {
+                        continue;
+                    }
+                }
+                // Any other added node is relevant
+                if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) {
+                    return true;
+                }
+            }
+            return false;
+        });
 
-        if (hasNewNodes) {
+        if (hasRelevantNodes) {
             scheduleReplacement(100);
         }
     };
