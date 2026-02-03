@@ -2,15 +2,8 @@
 /**
  * PHPUnit Tests for PriorityIconsPlugin
  *
- * TDD Red Phase: These tests define expected behavior BEFORE implementation.
- * All tests should FAIL initially until the plugin class is implemented.
- *
- * Test Coverage:
- * - bootstrap() - Signal registration
- * - injectAssets() - CSS/JS output generation
- * - enable() - Singleton pattern
- * - XSS prevention for asset URLs
- * - Priority mapping configuration
+ * Tests the output buffer-based asset injection, priority mapping,
+ * config reading from plugin instances, and XSS prevention.
  *
  * @package    osTicket\Plugins\PriorityIcons
  * @subpackage Tests
@@ -26,582 +19,318 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
-/**
- * Test suite for PriorityIconsPlugin main class.
- *
- * Expected class structure (to be implemented):
- *
- * class PriorityIconsPlugin extends Plugin
- * {
- *     public $config_class = 'PriorityIconsConfig';
- *     private static ?self $instance = null;
- *     private array $priorityMap = [...];
- *
- *     public function bootstrap(): void;
- *     public static function enable(int|string $id): self;
- *     public function injectAssets(object $dispatcher): void;
- *     private function injectConfig(): void;
- * }
- */
 #[CoversClass(\PriorityIconsPlugin::class)]
 #[Group('unit')]
 class PriorityIconsPluginTest extends TestCase
 {
-    /**
-     * Plugin instance under test.
-     */
     private \PriorityIconsPlugin $plugin;
 
-    /**
-     * Temporary directory for test assets.
-     */
-    private string $testAssetsDir;
-
-    /**
-     * Set up test fixtures.
-     *
-     * Creates a fresh plugin instance and resets the Signal mock
-     * before each test for isolation.
-     */
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Reset Signal mock to ensure test isolation
-        \Signal::reset();
-
-        // Create test assets directory with dummy files
-        $this->testAssetsDir = createTestAssets();
-
-        // Instantiate plugin - this will FAIL until class exists
         $this->plugin = new \PriorityIconsPlugin(1);
-    }
-
-    /**
-     * Tear down test fixtures.
-     */
-    protected function tearDown(): void
-    {
-        // Clean up test assets
-        if (isset($this->testAssetsDir)) {
-            removeTestAssets($this->testAssetsDir);
-        }
-
-        parent::tearDown();
     }
 
     // =========================================================================
     // Tests: Plugin Instantiation
     // =========================================================================
 
-    /**
-     * Test that plugin can be instantiated with an ID.
-     *
-     * Expected: Plugin accepts integer or string ID in constructor.
-     */
     #[Test]
-    public function pluginCanBeInstantiatedWithIntegerId(): void
+    public function pluginCanBeInstantiated(): void
     {
-        $plugin = new \PriorityIconsPlugin(42);
-
-        $this->assertInstanceOf(\PriorityIconsPlugin::class, $plugin);
-        $this->assertInstanceOf(\Plugin::class, $plugin);
+        $this->assertInstanceOf(\PriorityIconsPlugin::class, $this->plugin);
+        $this->assertInstanceOf(\Plugin::class, $this->plugin);
     }
 
-    /**
-     * Test that plugin can be instantiated with a string ID.
-     *
-     * Expected: Plugin accepts string ID (osTicket sometimes uses string IDs).
-     */
-    #[Test]
-    public function pluginCanBeInstantiatedWithStringId(): void
-    {
-        $plugin = new \PriorityIconsPlugin('plugin-instance-1');
-
-        $this->assertInstanceOf(\PriorityIconsPlugin::class, $plugin);
-    }
-
-    /**
-     * Test that config_class property is set correctly.
-     *
-     * Expected: Plugin declares 'PriorityIconsConfig' as its configuration class.
-     */
     #[Test]
     public function pluginDeclaresConfigClass(): void
     {
         $this->assertEquals('PriorityIconsConfig', $this->plugin->config_class);
     }
 
-    // =========================================================================
-    // Tests: bootstrap() - Signal Registration
-    // =========================================================================
-
-    /**
-     * Test that bootstrap() registers a signal handler.
-     *
-     * Expected: After calling bootstrap(), a handler should be registered
-     * for the 'apps.scp' signal (Staff Control Panel).
-     */
     #[Test]
-    public function bootstrapRegistersSignalHandler(): void
+    public function pluginIsSingleton(): void
     {
-        $this->plugin->bootstrap();
-
-        $this->assertTrue(
-            \Signal::hasHandlers('apps.scp'),
-            'bootstrap() should register a handler for "apps.scp" signal'
-        );
-    }
-
-    /**
-     * Test that bootstrap() registers injectAssets as the signal handler.
-     *
-     * Expected: The registered handler should be the injectAssets() method.
-     */
-    #[Test]
-    public function bootstrapRegistersInjectAssetsMethod(): void
-    {
-        $this->plugin->bootstrap();
-
-        $lastReg = \Signal::getLastRegistration();
-
-        $this->assertNotNull($lastReg, 'A signal handler should be registered');
-        $this->assertEquals('apps.scp', $lastReg['signal']);
-        $this->assertIsCallable($lastReg['handler']);
-
-        // Verify it's the injectAssets method of our plugin
-        $this->assertIsArray($lastReg['handler']);
-        $this->assertSame($this->plugin, $lastReg['handler'][0]);
-        $this->assertEquals('injectAssets', $lastReg['handler'][1]);
-    }
-
-    /**
-     * Test that bootstrap() uses a unique handler ID.
-     *
-     * Expected: Handler ID should identify this plugin (e.g., 'PriorityIconsPlugin').
-     */
-    #[Test]
-    public function bootstrapUsesUniqueHandlerId(): void
-    {
-        $this->plugin->bootstrap();
-
-        $lastReg = \Signal::getLastRegistration();
-
-        $this->assertNotEmpty($lastReg['id'], 'Handler should have a unique ID');
-        $this->assertStringContainsString(
-            'PriorityIcons',
-            $lastReg['id'],
-            'Handler ID should identify the plugin'
-        );
-    }
-
-    /**
-     * Test that bootstrap() does not throw exceptions.
-     *
-     * Expected: bootstrap() should be safe to call and not throw.
-     */
-    #[Test]
-    public function bootstrapDoesNotThrowException(): void
-    {
-        // Should not throw
-        $this->plugin->bootstrap();
-
-        $this->assertTrue(true, 'bootstrap() completed without exception');
+        $this->assertTrue($this->plugin->isSingleton());
     }
 
     // =========================================================================
-    // Tests: injectAssets() - HTML Output
+    // Tests: enable() - Singleton Auto-Instance
     // =========================================================================
 
-    /**
-     * Test that injectAssets() outputs a CSS link tag.
-     *
-     * Expected: Output should contain a <link> tag for the CSS file.
-     */
     #[Test]
-    public function injectAssetsOutputsCssLinkTag(): void
+    public function enableCreatesInstanceForSingleton(): void
     {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
+        $this->plugin->setNumInstances(0);
 
-        $this->assertStringContainsString(
-            '<link',
-            $output,
-            'Output should contain a <link> tag'
-        );
-        $this->assertStringContainsString(
-            'rel="stylesheet"',
-            $output,
-            'Link tag should be a stylesheet'
-        );
-        $this->assertStringContainsString(
-            'priority-icons.css',
-            $output,
-            'Link should reference the CSS file'
-        );
+        $result = $this->plugin->enable();
+
+        $this->assertNull($result, 'enable() should return null on success');
+        $this->assertEquals(1, $this->plugin->getNumInstances());
     }
 
-    /**
-     * Test that injectAssets() outputs a script tag.
-     *
-     * Expected: Output should contain a <script> tag for the JS file.
-     */
     #[Test]
-    public function injectAssetsOutputsScriptTag(): void
+    public function enableSkipsIfInstanceExists(): void
     {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
+        $this->plugin->setNumInstances(1);
 
-        $this->assertStringContainsString(
-            '<script',
-            $output,
-            'Output should contain a <script> tag'
-        );
-        $this->assertStringContainsString(
-            'priority-icons.js',
-            $output,
-            'Script should reference the JS file'
-        );
+        $this->plugin->enable();
+
+        $this->assertEquals(1, $this->plugin->getNumInstances());
     }
 
-    /**
-     * Test that injectAssets() adds defer attribute to script.
-     *
-     * Expected: Script tag should have defer attribute for non-blocking load.
-     */
-    #[Test]
-    public function injectAssetsUsesScriptDeferAttribute(): void
-    {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
+    // =========================================================================
+    // Tests: bootstrap() - Output Buffer Setup
+    // =========================================================================
 
-        $this->assertMatchesRegularExpression(
-            '/<script[^>]+defer/',
-            $output,
-            'Script tag should have defer attribute'
-        );
+    #[Test]
+    public function bootstrapDoesNotThrow(): void
+    {
+        unset($_SERVER['HTTP_X_REQUESTED_WITH']);
+
+        $this->plugin->bootstrap();
+
+        // Clean up ob_start() that bootstrap() initiated
+        ob_end_clean();
+
+        $this->assertTrue(true);
     }
 
-    /**
-     * Test that injectAssets() includes cache-busting version parameter.
-     *
-     * Expected: Asset URLs should include ?v= version query parameter.
-     */
     #[Test]
-    public function injectAssetsIncludesCacheBustingVersion(): void
+    public function bootstrapSkipsAjaxRequests(): void
     {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
+        $_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
+        $levelBefore = ob_get_level();
 
-        $this->assertMatchesRegularExpression(
-            '/priority-icons\.css\?v=\d+/',
-            $output,
-            'CSS URL should have version parameter'
-        );
-        $this->assertMatchesRegularExpression(
-            '/priority-icons\.js\?v=\d+/',
-            $output,
-            'JS URL should have version parameter'
-        );
+        $this->plugin->bootstrap();
+
+        $this->assertEquals($levelBefore, ob_get_level(), 'Should not start output buffer for AJAX');
+
+        unset($_SERVER['HTTP_X_REQUESTED_WITH']);
     }
 
-    /**
-     * Test that injectAssets() outputs inline configuration.
-     *
-     * Expected: Output should contain inline script with PriorityIconsConfig.
-     */
     #[Test]
-    public function injectAssetsOutputsInlineConfig(): void
+    public function bootstrapSkipsWhenDisabledViaConfig(): void
     {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
+        unset($_SERVER['HTTP_X_REQUESTED_WITH']);
 
-        $this->assertStringContainsString(
-            'window.PriorityIconsConfig',
-            $output,
-            'Output should set window.PriorityIconsConfig'
-        );
+        $config = new \PriorityIconsConfig();
+        $config->set('enabled', false);
+
+        $instance = new \PluginInstance(1, 1, $config);
+        $this->plugin->setTestActiveInstances([$instance]);
+
+        $levelBefore = ob_get_level();
+
+        $this->plugin->bootstrap();
+
+        $this->assertEquals($levelBefore, ob_get_level(), 'Should not start output buffer when disabled');
     }
 
-    /**
-     * Test that inline config contains priorities mapping.
-     *
-     * Expected: PriorityIconsConfig should include 'priorities' object.
-     */
-    #[Test]
-    public function injectAssetsConfigContainsPriorities(): void
-    {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
+    // =========================================================================
+    // Tests: injectAssetsIntoOutput() - HTML Injection
+    // =========================================================================
 
-        $this->assertStringContainsString(
-            '"priorities"',
-            $output,
-            'Config should contain priorities mapping'
-        );
+    #[Test]
+    public function injectAssetsInjectsBeforeHeadClose(): void
+    {
+        $html = '<html><head><title>Test</title></head><body></body></html>';
+
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $this->assertStringContainsString('data-plugin="priority-icons"', $result);
+        $this->assertStringContainsString('</head>', $result);
+    }
+
+    #[Test]
+    public function injectAssetsFallsBackToBodyClose(): void
+    {
+        $html = '<html><body><p>No head tag</p></body></html>';
+
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $this->assertStringContainsString('data-plugin="priority-icons"', $result);
+    }
+
+    #[Test]
+    public function injectAssetsPreventsDoubleInjection(): void
+    {
+        $html = '<html><head><style data-plugin="priority-icons"></style></head><body></body></html>';
+
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $this->assertEquals($html, $result, 'Should not inject twice');
+    }
+
+    #[Test]
+    public function injectAssetsReturnsUnmodifiedBufferWithoutHeadOrBody(): void
+    {
+        $html = '<div>Just a fragment</div>';
+
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $this->assertEquals($html, $result);
+    }
+
+    // =========================================================================
+    // Tests: Inline Assets Content
+    // =========================================================================
+
+    #[Test]
+    public function injectedAssetsContainInlineCss(): void
+    {
+        $html = '<html><head></head><body></body></html>';
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $this->assertStringContainsString('<style data-plugin="priority-icons">', $result);
+        $this->assertStringContainsString('.priority-icon', $result);
+    }
+
+    #[Test]
+    public function injectedAssetsContainInlineJs(): void
+    {
+        $html = '<html><head></head><body></body></html>';
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $this->assertStringContainsString('<script data-plugin="priority-icons">', $result);
+    }
+
+    #[Test]
+    public function injectedAssetsContainConfigScript(): void
+    {
+        $html = '<html><head></head><body></body></html>';
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $this->assertStringContainsString('window.PriorityIconsConfig=', $result);
+    }
+
+    // =========================================================================
+    // Tests: Priority Mapping in Config
+    // =========================================================================
+
+    #[Test]
+    #[DataProvider('standardPriorityProvider')]
+    public function configContainsPriority(string $priority): void
+    {
+        $html = '<html><head></head><body></body></html>';
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $config = $this->extractConfig($result);
+
+        $this->assertArrayHasKey($priority, $config['priorities']);
+        $this->assertArrayHasKey('color', $config['priorities'][$priority]);
+        $this->assertArrayHasKey('class', $config['priorities'][$priority]);
+        $this->assertArrayHasKey('icon', $config['priorities'][$priority]);
+    }
+
+    public static function standardPriorityProvider(): array
+    {
+        return [
+            'Emergency' => ['Emergency'],
+            'High'      => ['High'],
+            'Normal'    => ['Normal'],
+            'Low'       => ['Low'],
+            'Notfall'   => ['Notfall'],
+            'Hoch'      => ['Hoch'],
+            'Niedrig'   => ['Niedrig'],
+        ];
+    }
+
+    #[Test]
+    public function priorityColorsAreValidHex(): void
+    {
+        $html = '<html><head></head><body></body></html>';
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $config = $this->extractConfig($result);
+
+        foreach ($config['priorities'] as $name => $priority) {
+            $this->assertMatchesRegularExpression(
+                '/^#[0-9a-fA-F]{6}$/',
+                $priority['color'],
+                "$name should have a valid 6-digit hex color"
+            );
+        }
+    }
+
+    // =========================================================================
+    // Tests: Instance Config Colors
+    // =========================================================================
+
+    #[Test]
+    public function configColorsOverrideDefaults(): void
+    {
+        $config = new \PriorityIconsConfig();
+        $config->set('enabled', true);
+        $config->set('color_emergency', '#ff0000');
+        $config->set('color_low', '#00ff00');
+
+        $instance = new \PluginInstance(1, 1, $config);
+        $this->plugin->setTestActiveInstances([$instance]);
+
+        $html = '<html><head></head><body></body></html>';
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $cfg = $this->extractConfig($result);
+
+        $this->assertEquals('#ff0000', $cfg['priorities']['Emergency']['color']);
+        $this->assertEquals('#00ff00', $cfg['priorities']['Low']['color']);
+        // Aliases should also be updated
+        $this->assertEquals('#ff0000', $cfg['priorities']['Notfall']['color']);
+        $this->assertEquals('#00ff00', $cfg['priorities']['Niedrig']['color']);
+    }
+
+    #[Test]
+    public function invalidColorIsIgnored(): void
+    {
+        $config = new \PriorityIconsConfig();
+        $config->set('enabled', true);
+        $config->set('color_emergency', 'not-a-color');
+
+        $instance = new \PluginInstance(1, 1, $config);
+        $this->plugin->setTestActiveInstances([$instance]);
+
+        $html = '<html><head></head><body></body></html>';
+        $result = $this->plugin->injectAssetsIntoOutput($html);
+
+        $cfg = $this->extractConfig($result);
+
+        $this->assertEquals('#dc3545', $cfg['priorities']['Emergency']['color']);
     }
 
     // =========================================================================
     // Tests: XSS Prevention
     // =========================================================================
 
-    /**
-     * Test that asset URLs are properly escaped.
-     *
-     * Expected: URLs should be sanitized via Format::htmlchars() to prevent XSS.
-     */
     #[Test]
-    public function injectAssetsEscapesUrlsForXssPrevention(): void
+    public function configJsonUsesSecureEncoding(): void
     {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
+        $html = '<html><head></head><body></body></html>';
+        $result = $this->plugin->injectAssetsIntoOutput($html);
 
-        // Output should not contain unescaped angle brackets in attributes
-        // (except for the tags themselves)
-        $this->assertStringNotContainsString(
-            'href="<',
-            $output,
-            'URLs should not contain unescaped < characters'
-        );
-        $this->assertStringNotContainsString(
-            'src="<',
-            $output,
-            'URLs should not contain unescaped < characters'
-        );
-    }
+        // Extract only the config JSON (not the full JS that has </script> closing tags)
+        preg_match('/window\.PriorityIconsConfig=(.+?);/', $result, $matches);
+        $jsonStr = $matches[1] ?? '';
 
-    /**
-     * Test that inline JSON config uses safe encoding.
-     *
-     * Expected: JSON should use JSON_HEX_TAG | JSON_HEX_APOS for XSS safety.
-     */
-    #[Test]
-    public function injectAssetsUsesSecureJsonEncoding(): void
-    {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
-
-        // JSON_HEX_TAG converts < to \u003C and > to \u003E
-        // This prevents </script> injection
-        $this->assertStringNotContainsString(
-            '</script>',
-            preg_replace('/<\/script>$/m', '', $output),
-            'JSON config should not contain literal </script>'
-        );
+        // JSON_HEX_TAG should encode < as \u003C
+        $this->assertStringNotContainsString('</', $jsonStr, 'JSON should not contain literal </');
     }
 
     // =========================================================================
-    // Tests: Priority Mapping
+    // Helpers
     // =========================================================================
 
     /**
-     * Test that config includes all standard priorities.
-     *
-     * Expected: Config should include Emergency, High, Normal, Low.
+     * Extract PriorityIconsConfig from injected HTML
      */
-    #[Test]
-    #[DataProvider('standardPriorityProvider')]
-    public function injectAssetsConfigIncludesStandardPriority(string $priority): void
+    private function extractConfig(string $html): array
     {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
-
-        $this->assertStringContainsString(
-            "\"$priority\"",
-            $output,
-            "Config should include '$priority' priority"
-        );
-    }
-
-    /**
-     * Data provider for standard priority names.
-     *
-     * @return array<string, array{string}>
-     */
-    public static function standardPriorityProvider(): array
-    {
-        return [
-            'Emergency priority' => ['Emergency'],
-            'High priority'      => ['High'],
-            'Normal priority'    => ['Normal'],
-            'Low priority'       => ['Low'],
-        ];
-    }
-
-    /**
-     * Test that each priority has color configuration.
-     *
-     * Expected: Each priority should have a 'color' property with hex value.
-     */
-    #[Test]
-    public function injectAssetsConfigIncludesColorsForPriorities(): void
-    {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
-
-        // Extract JSON config
-        preg_match('/window\.PriorityIconsConfig\s*=\s*({.+?});/', $output, $matches);
-
-        $this->assertNotEmpty($matches, 'Should find config in output');
+        preg_match('/window\.PriorityIconsConfig=(.+?);/', $html, $matches);
+        $this->assertNotEmpty($matches, 'Should find PriorityIconsConfig in output');
 
         $config = json_decode($matches[1], true);
+        $this->assertIsArray($config, 'Config should be valid JSON');
 
-        $this->assertIsArray($config);
-        $this->assertArrayHasKey('priorities', $config);
-
-        foreach (['Emergency', 'High', 'Normal', 'Low'] as $priority) {
-            $this->assertArrayHasKey($priority, $config['priorities']);
-            $this->assertArrayHasKey('color', $config['priorities'][$priority]);
-            $this->assertMatchesRegularExpression(
-                '/^#[0-9a-fA-F]{6}$/',
-                $config['priorities'][$priority]['color'],
-                "$priority should have valid hex color"
-            );
-        }
-    }
-
-    /**
-     * Test that each priority has CSS class configuration.
-     *
-     * Expected: Each priority should have a 'class' property.
-     */
-    #[Test]
-    public function injectAssetsConfigIncludesCssClassesForPriorities(): void
-    {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
-
-        preg_match('/window\.PriorityIconsConfig\s*=\s*({.+?});/', $output, $matches);
-        $config = json_decode($matches[1] ?? '{}', true);
-
-        foreach (['Emergency', 'High', 'Normal', 'Low'] as $priority) {
-            $this->assertArrayHasKey(
-                'class',
-                $config['priorities'][$priority] ?? [],
-                "$priority should have CSS class"
-            );
-            $this->assertStringContainsString(
-                'priority-',
-                $config['priorities'][$priority]['class'],
-                "$priority CSS class should follow naming convention"
-            );
-        }
-    }
-
-    // =========================================================================
-    // Tests: Error Handling
-    // =========================================================================
-
-    /**
-     * Test that injectAssets() handles missing CSS file gracefully.
-     *
-     * Expected: If CSS file doesn't exist, don't output link tag, don't throw.
-     */
-    #[Test]
-    public function injectAssetsHandlesMissingCssFileGracefully(): void
-    {
-        // Use a non-existent assets directory by redefining INCLUDE_DIR
-        // This is tricky with constants, so we test the general behavior
-        // that the method doesn't throw even when files might be missing
-
-        ob_start();
-        try {
-            $this->plugin->injectAssets(new \stdClass());
-            $output = ob_get_clean();
-            // If we get here, no exception was thrown
-            $this->assertTrue(true, 'injectAssets() should not throw on missing files');
-        } catch (\Exception $e) {
-            ob_get_clean();
-            $this->fail('injectAssets() should not throw exception: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Test that injectAssets() accepts any object as dispatcher.
-     *
-     * Expected: Method should accept stdClass or any dispatcher object.
-     */
-    #[Test]
-    public function injectAssetsAcceptsAnyDispatcherObject(): void
-    {
-        $dispatchers = [
-            new \stdClass(),
-            new class {
-                public string $name = 'test';
-            },
-        ];
-
-        foreach ($dispatchers as $dispatcher) {
-            ob_start();
-            $this->plugin->injectAssets($dispatcher);
-            $output = ob_get_clean();
-
-            $this->assertIsString($output, 'Should produce string output');
-        }
-    }
-
-    // =========================================================================
-    // Tests: Output Format
-    // =========================================================================
-
-    /**
-     * Test that output contains proper line breaks.
-     *
-     * Expected: Each tag should be on its own line for readability.
-     */
-    #[Test]
-    public function injectAssetsOutputHasProperLineBreaks(): void
-    {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
-
-        // Tags should end with newlines
-        $this->assertMatchesRegularExpression(
-            '/<link[^>]+>\s*\n/',
-            $output,
-            'Link tag should be followed by newline'
-        );
-    }
-
-    /**
-     * Test that output is valid HTML (well-formed tags).
-     *
-     * Expected: All tags should be properly closed or self-closing.
-     */
-    #[Test]
-    public function injectAssetsOutputIsValidHtml(): void
-    {
-        ob_start();
-        $this->plugin->injectAssets(new \stdClass());
-        $output = ob_get_clean();
-
-        // Link tags should be self-closing (HTML5 allows unclosed, but > is required)
-        $this->assertMatchesRegularExpression(
-            '/<link[^>]+>/',
-            $output,
-            'Link tag should be properly formed'
-        );
-
-        // Script tags must be closed
-        $scriptOpenCount = substr_count($output, '<script');
-        $scriptCloseCount = substr_count($output, '</script>');
-
-        $this->assertEquals(
-            $scriptOpenCount,
-            $scriptCloseCount,
-            'All script tags should be properly closed'
-        );
+        return $config;
     }
 }
