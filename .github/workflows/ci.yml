@@ -30,7 +30,7 @@ jobs:
         run: composer validate --strict
 
       - name: Install Composer Dependencies
-        run: composer install --prefer-dist --no-progress
+        run: composer update --prefer-dist --no-progress
 
       - name: PHP Syntax Check
         run: |
