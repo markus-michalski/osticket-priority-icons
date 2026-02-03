@@ -256,11 +256,13 @@
    ========================================================================== */
 
 /**
- * Ensure icons align properly in ticket queue table cells.
+ * Center icons vertically in ticket queue table cells.
  */
 table.list.queue.tickets td .priority-wrapper {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    height: 100%;
 }
 
 /**
@@ -277,6 +279,7 @@ table.list.queue.tickets td .priority-icon {
 .ticket-info .priority-wrapper {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
 }
 
 /* ==========================================================================
