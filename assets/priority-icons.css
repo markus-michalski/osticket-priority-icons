@@ -256,6 +256,14 @@
    ========================================================================== */
 
 /**
+ * Tinted background for priority table cells.
+ * Uses the --priority-color set by JS on the td element.
+ */
+td[data-priority-cell] {
+    background-color: color-mix(in srgb, var(--priority-color) 12%, white);
+}
+
+/**
  * Center icons vertically in ticket queue table cells.
  */
 table.list.queue.tickets td .priority-wrapper {

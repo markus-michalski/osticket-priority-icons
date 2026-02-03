@@ -204,6 +204,16 @@
         node.parentNode.replaceChild(wrapper, node);
         markProcessed(wrapper, priority);
 
+        // Apply background tint to parent table cell
+        const td = wrapper.closest('td');
+        if (td) {
+            const cfg = CONFIG.priorities[priority];
+            if (cfg) {
+                td.style.setProperty('--priority-color', cfg.color);
+                td.setAttribute('data-priority-cell', '');
+            }
+        }
+
         log('Replaced:', priority);
 
         return true;
