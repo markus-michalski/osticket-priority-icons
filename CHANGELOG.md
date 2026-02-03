@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Nothing yet
+
+### Changed
+- Nothing yet
+
+### Fixed
+- Nothing yet
+
+## [1.0.1] - 2026-02-03
+
+### Added
+- Add German priority name support (Niedrig, Normal, Hoch, Notfall)
+
+### Changed
+- update changelog for unreleased changes and add version links
+
+### Fixed
+- remove class filter from Signal::connect causing handler to never fire
+- Use dynamic plugin directory path instead of hardcoded
+- Load config.php explicitly to make PriorityIconsConfig available
+- Add isSingleton() and enable() methods for instance creation
+- Remove enable() method - not needed for simple plugins
+- Remove type declaration from config_class property
+
 ## [1.0.0] - 2026-01-22
 
 ### Added
