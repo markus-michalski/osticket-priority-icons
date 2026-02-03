@@ -258,9 +258,12 @@
 /**
  * Tinted background for priority table cells.
  * Uses the --priority-color set by JS on the td element.
+ * osTicket sets inline background-color on an inner div,
+ * so we must override that with !important.
  */
-td[data-priority-cell] {
-    background-color: color-mix(in srgb, var(--priority-color) 12%, white);
+td[data-priority-cell],
+td[data-priority-cell] > div {
+    background-color: color-mix(in srgb, var(--priority-color) 12%, white) !important;
 }
 
 /**
