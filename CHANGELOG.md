@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Nothing yet
 
+## [1.0.2] - 2026-02-03
+
+### Added
+- add priority color tint to table cell backgrounds
+
+### Changed
+- reset of version in plugin.php
+- center priority icons vertically in table cells
+
+### Fixed
+- override osTicket inline background-color on inner div
+- resolve infinite DOM recursion and config colors not applied
+- use admin-configured colors instead of hardcoded defaults
+- escape */ in docblock that prematurely closed the comment
+- use ob_start() for asset injection instead of addExtraHeader
+- replace Signal-based injection with inline addExtraHeader
+
 ## [1.0.1] - 2026-02-03
 
 ### Added
