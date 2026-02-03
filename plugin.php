@@ -3,7 +3,7 @@
  * Priority Icons Plugin - Metadata
  *
  * osTicket plugin that replaces priority text labels with visual
- * color-coded icons using Signal-based CSS/JS injection.
+ * color-coded icons using output buffer-based CSS/JS injection.
  *
  * @package    osTicket\Plugins\PriorityIcons
  * @author     Markus Michalski
@@ -14,7 +14,7 @@
 
 return [
     'id'          => 'osticket:priority-icons',
-    'version' =>        '1.0.2',
+    'version' =>        '1.0.3',
     'name'        => /* trans */ 'Priority Icons',
     'author'      => 'Markus Michalski',
     'description' => /* trans */ 'Replaces priority text labels with visual color-coded icons',

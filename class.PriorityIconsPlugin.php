@@ -159,6 +159,16 @@ class PriorityIconsPlugin extends Plugin
             return;
         }
 
+        // Check if plugin is disabled via config
+        try {
+            $pluginConfig = $this->getConfig();
+            if ($pluginConfig && !$pluginConfig->get('enabled')) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            // Config unavailable — continue with defaults
+        }
+
         ob_start([$this, 'injectAssetsIntoOutput']);
     }
 
@@ -220,6 +230,50 @@ class PriorityIconsPlugin extends Plugin
     }
 
     /**
+     * Build priority map with admin-configured colors merged in.
+     *
+     * Reads color settings from plugin config and overrides
+     * the hardcoded defaults in $priorityMap.
+     *
+     * @return array<string, array{icon: string, color: string, class: string}>
+     */
+    private function getEffectivePriorityMap(): array
+    {
+        $map = $this->priorityMap;
+
+        try {
+            $pluginConfig = $this->getConfig();
+            if (!$pluginConfig) {
+                return $map;
+            }
+
+            // Map config keys to priority names (including aliases)
+            $colorMapping = [
+                'color_emergency' => ['Emergency', 'Notfall'],
+                'color_high'      => ['High', 'Hoch'],
+                'color_normal'    => ['Normal'],
+                'color_low'       => ['Low', 'Niedrig'],
+            ];
+
+            foreach ($colorMapping as $configKey => $priorityNames) {
+                $color = $pluginConfig->get($configKey);
+                if (!$color || !preg_match('/^#[0-9a-fA-F]{3,6}$/', $color)) {
+                    continue;
+                }
+                foreach ($priorityNames as $name) {
+                    if (isset($map[$name])) {
+                        $map[$name]['color'] = $color;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback to hardcoded defaults on any error
+        }
+
+        return $map;
+    }
+
+    /**
      * Build inline JavaScript configuration script.
      *
      * Passes priority mapping from PHP to JavaScript via
@@ -234,7 +288,7 @@ class PriorityIconsPlugin extends Plugin
     private function buildConfigScript(): string
     {
         $config = [
-            'priorities' => $this->priorityMap,
+            'priorities' => $this->getEffectivePriorityMap(),
             'debug'      => false,
         ];
 
