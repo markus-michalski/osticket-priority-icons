@@ -3,13 +3,12 @@
  * Priority Icons Plugin - Main Class
  *
  * Replaces priority text labels with visual color-coded icons in osTicket's
- * Staff Control Panel using Signal-based CSS/JS injection.
+ * Staff Control Panel using inline CSS/JS injection via addExtraHeader().
  *
  * Features:
  * - No core file modifications
- * - Signal-based asset injection via 'apps.scp'
+ * - Inline asset injection via $ost->addExtraHeader()
  * - XSS-safe output escaping
- * - Cache-busting version parameters
  * - Configurable colors and styles
  *
  * @package    osTicket\Plugins\PriorityIcons
@@ -34,8 +33,8 @@ if (file_exists(__DIR__ . '/config.php')) {
  * Main plugin class extending osTicket's Plugin base.
  *
  * Follows osTicket plugin conventions:
- * - Signal registration in bootstrap()
- * - Asset injection via injectAssets()
+ * - Asset injection via $ost->addExtraHeader() in bootstrap()
+ * - Inline CSS/JS to bypass include/.htaccess "Deny from all"
  */
 class PriorityIconsPlugin extends Plugin
 {
@@ -133,63 +132,51 @@ class PriorityIconsPlugin extends Plugin
     ];
 
     /**
-     * Bootstrap the plugin by registering signal handlers.
+     * Bootstrap the plugin by injecting inline CSS/JS into the page header.
      *
      * Called on every page load when plugin is enabled.
-     * Registers handler for 'apps.scp' signal to inject CSS/JS
-     * into the Staff Control Panel.
+     * Uses $ost->addExtraHeader() to register assets in the <head>
+     * of every Staff Control Panel page.
+     *
+     * Assets are injected INLINE because:
+     * 1. Signal::connect('apps.scp') does NOT work — that signal only fires
+     *    in scp/apps/dispatcher.php (Apps tab), not on tickets.php etc.
+     * 2. External <link>/<script> to include/plugins/ would be blocked by
+     *    include/.htaccess "Deny from all" — and we must not modify core files.
      *
      * @return void
      */
     public function bootstrap(): void
     {
-        // NOTE: 3rd param of Signal::connect() is a CLASS FILTER, not an ID!
-        // 'PriorityIconsPlugin' would mean: only fire when sender is instanceof PriorityIconsPlugin
-        // Since apps.scp sender is Dispatcher, the handler would NEVER fire.
-        Signal::connect('apps.scp', [$this, 'injectAssets']);
-    }
+        global $ost;
 
-    /**
-     * Inject CSS and JavaScript assets into page output.
-     *
-     * Called by Signal::send('apps.scp') in dispatcher.php.
-     * Outputs:
-     * - External CSS link with cache-busting version
-     * - External JS script (deferred) with cache-busting version
-     * - Inline JS config with priority mapping
-     *
-     * All URLs are escaped via Format::htmlchars() for XSS prevention.
-     *
-     * @param object $dispatcher The dispatcher object from signal (unused but required)
-     * @return void
-     */
-    public function injectAssets(object $dispatcher): void
-    {
-        $pluginDir = $this->getPluginDirectory();
-        $assetUrl = $this->getAssetUrl();
+        if (!$ost instanceof \osTicket) {
+            return;
+        }
 
-        // CSS - external file with cache-busting
-        $cssFile = $pluginDir . 'assets/priority-icons.css';
+        // Inline CSS
+        $cssFile = __DIR__ . '/assets/priority-icons.css';
         if (file_exists($cssFile)) {
-            $version = (string) filemtime($cssFile);
-            $cssUrl = Format::htmlchars($assetUrl . 'assets/priority-icons.css?v=' . $version);
-            echo '<link rel="stylesheet" href="' . $cssUrl . '">' . "\n";
+            $css = file_get_contents($cssFile);
+            $ost->addExtraHeader('<style data-plugin="priority-icons">' . $css . '</style>');
         }
 
-        // JavaScript - external file with cache-busting (deferred for non-blocking)
-        $jsFile = $pluginDir . 'assets/priority-icons.js';
+        // Inline config (before JS so window.PriorityIconsConfig is available)
+        $this->injectConfig($ost);
+
+        // Inline JS with initialization guard to prevent double-init on PJAX
+        $jsFile = __DIR__ . '/assets/priority-icons.js';
         if (file_exists($jsFile)) {
-            $version = (string) filemtime($jsFile);
-            $jsUrl = Format::htmlchars($assetUrl . 'assets/priority-icons.js?v=' . $version);
-            echo '<script src="' . $jsUrl . '" defer></script>' . "\n";
+            $js = file_get_contents($jsFile);
+            $guard = 'if(window.PriorityIconsLoaded){}else{window.PriorityIconsLoaded=true;';
+            $ost->addExtraHeader(
+                '<script data-plugin="priority-icons">' . $guard . $js . '}</script>'
+            );
         }
-
-        // Inline configuration for JavaScript
-        $this->injectConfig();
     }
 
     /**
-     * Inject inline JavaScript configuration.
+     * Inject inline JavaScript configuration via addExtraHeader.
      *
      * Passes priority mapping from PHP to JavaScript via
      * window.PriorityIconsConfig object.
@@ -198,9 +185,10 @@ class PriorityIconsPlugin extends Plugin
      * - JSON_HEX_TAG: Converts < and > to \u003C and \u003E
      * - JSON_HEX_APOS: Converts ' to \u0027
      *
+     * @param \osTicket $ost The osTicket instance
      * @return void
      */
-    private function injectConfig(): void
+    private function injectConfig(\osTicket $ost): void
     {
         $config = [
             'priorities' => $this->priorityMap,
@@ -210,27 +198,10 @@ class PriorityIconsPlugin extends Plugin
         // JSON_HEX_TAG prevents </script> injection attacks
         $jsonConfig = json_encode($config, JSON_HEX_TAG | JSON_HEX_APOS | JSON_THROW_ON_ERROR);
 
-        echo '<script>window.PriorityIconsConfig = ' . $jsonConfig . ';</script>' . "\n";
-    }
-
-    /**
-     * Get the plugin directory path.
-     *
-     * @return string Absolute path to plugin directory
-     */
-    private function getPluginDirectory(): string
-    {
-        return __DIR__ . '/';
-    }
-
-    /**
-     * Get the base URL for plugin assets.
-     *
-     * @return string URL path to plugin directory
-     */
-    private function getAssetUrl(): string
-    {
-        $pluginDir = basename(__DIR__);
-        return ROOT_PATH . 'include/plugins/' . $pluginDir . '/';
+        $ost->addExtraHeader(
+            '<script data-plugin="priority-icons">'
+            . 'window.PriorityIconsConfig=' . $jsonConfig . ';'
+            . '</script>'
+        );
     }
 }
