@@ -47,7 +47,7 @@ if (file_exists(__DIR__ . '/config.php')) {
  *
  * Why inline (not external files):
  *   include/.htaccess contains "Deny from all" which blocks HTTP access
- *   to include/plugins/*/assets/. We must not modify core files.
+ *   to include/plugins/{name}/assets/. We must not modify core files.
  */
 class PriorityIconsPlugin extends Plugin
 {
