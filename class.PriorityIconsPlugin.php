@@ -143,11 +143,10 @@ class PriorityIconsPlugin extends Plugin
      */
     public function bootstrap(): void
     {
-        Signal::connect(
-            'apps.scp',
-            [$this, 'injectAssets'],
-            'PriorityIconsPlugin'
-        );
+        // NOTE: 3rd param of Signal::connect() is a CLASS FILTER, not an ID!
+        // 'PriorityIconsPlugin' would mean: only fire when sender is instanceof PriorityIconsPlugin
+        // Since apps.scp sender is Dispatcher, the handler would NEVER fire.
+        Signal::connect('apps.scp', [$this, 'injectAssets']);
     }
 
     /**
